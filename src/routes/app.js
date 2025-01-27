@@ -4,12 +4,18 @@ const unloadMulter = require('../middleware/unload');
 const router = express.Router();
 
 const library = {
-    books: [],
+    books: [
+        new Book(`Том 1`, `Liza`, `Начало`),
+        new Book(`Том 2`, `Liza`, `Продолжение`),
+    ],
 }
 
 router.get('/', (req, res) => {
     const {books} = library;
-    res.json(books);
+    res.render('../src/views/books/index', {
+        title: 'Books',
+        books: books,
+    });
 });
 
 router.get('/:id', (req, res) => {
@@ -17,10 +23,12 @@ router.get('/:id', (req, res) => {
     const {id} = req.params;
     const idx = books.findIndex((el) => el.id === id);
     if (idx !== -1) {
-        res.json(books[idx]);
+        res.render('../src/views/books/view', {
+            title: 'Book view',
+            books: books[idx],
+        });
     } else { 
-        res.status(404);
-        res.json('404 | страница не найдена')
+        res.redirect('/404');
     }
 });
 
@@ -31,17 +39,23 @@ router.get('/:id/download', (req, res) => {
     if (idx !== -1) {
         res.download(`${__dirname}/../public/books/${books[idx].fileBook}`, books[idx].fileName, err => {
             if (err) {
-              res.status(404);
-              res.json(err);
+                res.redirect('/404');
             }
         });
     } else { 
-        res.status(404);
-        res.json('404 | страница не найдена')
+        res.redirect('/404');
     }
 });
 
-router.post('/', unloadMulter.single('filebook'), (req, res) => {
+router.get('/create', (req, res) => {
+    const {books} = library;
+    res.render('../src/views/books/create', {
+        title: 'Book create',
+        books: books,
+    });
+})
+
+router.post('/create', unloadMulter.single('filebook'), (req, res) => {
     const {books} = library;
     const {
         title, 
@@ -52,11 +66,6 @@ router.post('/', unloadMulter.single('filebook'), (req, res) => {
         fileName,
     } = req.body;
 
-    if (!req.file) {
-        res.status(404);
-        res.json('404 | Файл не найден');
-        return;
-    }
     const fileBook = req.file.path;
 
     const newBook = new Book(
@@ -69,12 +78,24 @@ router.post('/', unloadMulter.single('filebook'), (req, res) => {
         fileBook,
     );
     books.push(newBook);
-
-    res.status(201);
-    res.json(newBook);
+    res.redirect('api/books');
 });
 
-router.put('/:id', unloadMulter.single('filebook'), (req, res) => {
+router.get('/update/:id', (req, res) => {
+    const {books} = library;
+    const {id} = req.params;
+    const idx = books.findIndex((el) => el.id === id);
+    if (idx !== -1) {
+        res.render('../src/views/books/update', {
+            title: 'Book update',
+            books: books[idx],
+        });
+    } else { 
+        res.redirect('/404');
+    }
+});
+
+router.post('/update/:id', unloadMulter.single('filebook'), (req, res) => {
     const {books} = library;
     const {
         title, 
@@ -85,11 +106,6 @@ router.put('/:id', unloadMulter.single('filebook'), (req, res) => {
         fileName,
     } = req.body;
 
-    if (!req.file) {
-        res.status(404);
-        res.json('404 | Файл не найден');
-        return;
-    }
     const fileBook = req.file.path;
 
     const {id} = req.params;
@@ -105,24 +121,22 @@ router.put('/:id', unloadMulter.single('filebook'), (req, res) => {
             fileName,
             fileBook,
         }
-        res.json(books[idx]);
+        res.redirect(`/api/books/${id}`);
     } else { 
-        res.status(404);
-        res.json('404 | страница не найдена')
+        res.redirect('/404');
     }
 });
 
-router.delete('/:id', (req, res) => {
+router.post('/delete/:id', (req, res) => {
     const {books} = library;
     const {id} = req.params;
     const idx = books.findIndex((el) => el.id === id);
-    if (idx !== -1) {
-        res.slice(idx, 1);
-        res.json('ok')
-    } else { 
-        res.status(404);
-        res.json('404 | страница не найдена')
+    if (idx === -1) {
+        res.redirect('/404');
     }
+
+    books.slice(idx, 1);
+    res.redirect('/api/books');
 });
 
 module.exports = router;
